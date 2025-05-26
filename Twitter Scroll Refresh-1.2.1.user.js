@@ -6,8 +6,7 @@
 // @description  Refresh Twitter timeline by scrolling up at the top of the page
 // @description:zh-CN  在Twitter顶部向上滚动时自动刷新获取新帖子
 // @author       Xeron
-// @match        https://twitter.com/*
-// @match        https://x.com/*
+// @match        https://x.com/home
 // @icon         https://abs.twimg.com/favicons/twitter.2.ico
 // @homepageURL  https://github.com/Xeron2000/twitter-scroll-refresh
 // @supportURL   https://github.com/Xeron2000/twitter-scroll-refresh/issues
