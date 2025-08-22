@@ -2,11 +2,12 @@
 // @name         Twitter Scroll Refresh
 // @name:zh-CN   Twitter 滚轮刷新
 // @namespace    https://github.com/Xeron2000/twitter-scroll-refresh
-// @version      1.2.1
+// @version      1.4.0
 // @description  Refresh Twitter timeline by scrolling up at the top of the page
 // @description:zh-CN  在Twitter顶部向上滚动时自动刷新获取新帖子
 // @author       Xeron
 // @match        https://x.com/home
+// @match        https://x.com/home/*
 // @icon         https://abs.twimg.com/favicons/twitter.2.ico
 // @homepageURL  https://github.com/Xeron2000/twitter-scroll-refresh
 // @supportURL   https://github.com/Xeron2000/twitter-scroll-refresh/issues
@@ -23,7 +24,7 @@
  * A userscript that allows refreshing Twitter/X timeline by scrolling up at the top.
  * 一个通过在顶部向上滚动来刷新Twitter/X时间线的用户脚本。
  *
- * @version 1.2.1
+ * @version 1.4.0
  * @author Xeron
  * @license MIT
  * @repository https://github.com/Xeron2000/twitter-scroll-refresh
@@ -39,7 +40,9 @@
         TOP_OFFSET: GM_getValue('topOffset', 10), // 顶部偏移量
         SHOW_NOTIFICATIONS: GM_getValue('showNotifications', true), // 显示通知
         DEBUG_MODE: GM_getValue('debugMode', false), // 调试模式
-        LANGUAGE: GM_getValue('language', 'auto') // 语言设置
+        LANGUAGE: GM_getValue('language', 'auto'), // 语言设置
+        ENABLE_SCROLL_TO_TOP: GM_getValue('enableScrollToTop', true), // 启用滚轮到顶部
+        SCROLL_TO_TOP_COOLDOWN: GM_getValue('scrollToTopCooldown', 2000) // 滚轮到顶部冷却时间
     };
 
     // ====== Internationalization / 国际化 ======
@@ -59,7 +62,10 @@
             languageZhCn: '中文简体',
             save: 'Save',
             cancel: 'Cancel',
-            saved: 'Settings saved!'
+            saved: 'Settings saved!',
+            enableScrollToTop: 'Enable Scroll to Top (Shift + Wheel Up)',
+            scrollToTopCooldown: 'Scroll to Top Cooldown (ms)',
+            scrolledToTop: 'Scrolled to top'
         },
         'zh-CN': {
             refreshTriggered: '正在刷新时间线...',
@@ -76,7 +82,10 @@
             languageZhCn: '中文简体',
             save: '保存',
             cancel: '取消',
-            saved: '设置已保存！'
+            saved: '设置已保存！',
+            enableScrollToTop: '启用滚轮到顶部 (Shift + 向上滚轮)',
+            scrollToTopCooldown: '滚轮到顶部冷却时间 (毫秒)',
+            scrolledToTop: '已滚动到顶部'
         }
     };
 
@@ -171,6 +180,17 @@
     let lastScrollTime = 0;
     let refreshing = false;
     let wheelStartTime = 0;
+    let lastScrollToTopTime = 0;
+
+    /**
+     * Check if current page is home timeline
+     * 检查当前页面是否为主页时间线
+     */
+    function isHomeTimeline() {
+        const currentPath = window.location.pathname;
+        // Only enable on exact /home or /home/ path
+        return currentPath === '/home' || currentPath === '/home/';
+    }
 
     /**
      * Check if page is at top
@@ -180,6 +200,22 @@
         return window.scrollY <= CONFIG.TOP_OFFSET;
     }
 
+    /**
+     * Scroll to top smoothly
+     * 平滑滚动到顶部
+     */
+    function scrollToTop() {
+        if (CONFIG.SHOW_NOTIFICATIONS) {
+            showNotification(getMessage('scrolledToTop'), 1000);
+        }
+        
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
+
+    
     /**
      * Find and execute refresh action
      * 查找并执行刷新操作
@@ -281,7 +317,23 @@
      * 处理滚轮事件
      */
     function handleWheel(event) {
+        // Check if we're on the home timeline page
+        if (!isHomeTimeline()) {
+            return;
+        }
+
         const currentTime = Date.now();
+
+        // Handle scroll to top functionality (when not at top)
+        if (CONFIG.ENABLE_SCROLL_TO_TOP && !checkIfAtTop() && event.deltaY < 0 && event.shiftKey) {
+            if (currentTime - lastScrollToTopTime > CONFIG.SCROLL_TO_TOP_COOLDOWN) {
+                debugLog('Shift + wheel up detected, scrolling to top');
+                event.preventDefault();
+                scrollToTop();
+                lastScrollToTopTime = currentTime;
+                return;
+            }
+        }
 
         // Check if at top
         if (checkIfAtTop()) {
@@ -316,6 +368,11 @@
      * 处理滚动事件
      */
     function handleScroll() {
+        // Check if we're on the home timeline page
+        if (!isHomeTimeline()) {
+            return;
+        }
+
         const wasAtTop = isAtTop;
         isAtTop = checkIfAtTop();
 
@@ -415,6 +472,20 @@
                     <input type="number" id="topOffset" value="${CONFIG.TOP_OFFSET}"
                            style="${inputStyle}" min="0" max="50" step="5">
                 </div>
+                <div style="margin-bottom: 18px; padding: 12px; background: #f0f9ff; border-radius: 8px; border: 1px solid #e0f2fe;">
+                    <label style="display: flex; align-items: center; color: #14171a; font-weight: 500; cursor: pointer;">
+                        <input type="checkbox" id="enableScrollToTop" ${CONFIG.ENABLE_SCROLL_TO_TOP ? 'checked' : ''}
+                               style="margin-right: 10px; transform: scale(1.1);">
+                        ${getMessage('enableScrollToTop')}
+                    </label>
+                </div>
+                <div style="margin-bottom: 18px;">
+                    <label style="display: block; margin-bottom: 8px; color: #657786; font-weight: 500; font-size: 13px;">
+                        ${getMessage('scrollToTopCooldown')}
+                    </label>
+                    <input type="number" id="scrollToTopCooldown" value="${CONFIG.SCROLL_TO_TOP_COOLDOWN}"
+                           style="${inputStyle}" min="1000" max="5000" step="100">
+                </div>
                 <div style="margin-bottom: 18px; padding: 12px; background: #f7f9fa; border-radius: 8px;">
                     <label style="display: flex; align-items: center; color: #14171a; font-weight: 500; cursor: pointer;">
                         <input type="checkbox" id="showNotifications" ${CONFIG.SHOW_NOTIFICATIONS ? 'checked' : ''}
@@ -492,6 +563,8 @@
             CONFIG.SCROLL_THRESHOLD = parseInt(document.getElementById('scrollThreshold').value);
             CONFIG.REFRESH_COOLDOWN = parseInt(document.getElementById('refreshCooldown').value);
             CONFIG.TOP_OFFSET = parseInt(document.getElementById('topOffset').value);
+            CONFIG.ENABLE_SCROLL_TO_TOP = document.getElementById('enableScrollToTop').checked;
+            CONFIG.SCROLL_TO_TOP_COOLDOWN = parseInt(document.getElementById('scrollToTopCooldown').value);
             CONFIG.SHOW_NOTIFICATIONS = document.getElementById('showNotifications').checked;
             CONFIG.DEBUG_MODE = document.getElementById('debugMode').checked;
 
@@ -500,6 +573,8 @@
             GM_setValue('scrollThreshold', CONFIG.SCROLL_THRESHOLD);
             GM_setValue('refreshCooldown', CONFIG.REFRESH_COOLDOWN);
             GM_setValue('topOffset', CONFIG.TOP_OFFSET);
+            GM_setValue('enableScrollToTop', CONFIG.ENABLE_SCROLL_TO_TOP);
+            GM_setValue('scrollToTopCooldown', CONFIG.SCROLL_TO_TOP_COOLDOWN);
             GM_setValue('showNotifications', CONFIG.SHOW_NOTIFICATIONS);
             GM_setValue('debugMode', CONFIG.DEBUG_MODE);
 
@@ -531,7 +606,7 @@
      * 初始化脚本
      */
     function initialize() {
-        debugLog('Initializing Twitter Scroll Refresh v1.2.1');
+        debugLog('Initializing Twitter Scroll Refresh v1.4.0');
 
         // Add event listeners
         document.addEventListener('wheel', handleWheel, { passive: false });
@@ -540,9 +615,9 @@
         // Register menu command for settings
         GM_registerMenuCommand('⚙️ Settings / 设置', createSettingsDialog);
 
-        // Show initialization notification
+        // Show initialization notification only on home timeline
         setTimeout(() => {
-            if (CONFIG.SHOW_NOTIFICATIONS) {
+            if (CONFIG.SHOW_NOTIFICATIONS && isHomeTimeline()) {
                 showNotification(getMessage('scrollToRefresh'), 3000);
             }
         }, 1000);
