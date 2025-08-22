@@ -23,7 +23,7 @@ A simple userscript that allows you to refresh Twitter/X timeline by scrolling u
    - [Violentmonkey](https://violentmonkey.github.io/)
 
 2. 点击下面的链接安装脚本:
-   [安装脚本 / Install Script](https://github.com/Xeron2000/twitter-scroll-refresh/raw/refs/heads/main/Twitter%20Scroll%20Refresh-1.4.0.user.js)
+   [安装脚本 / Install Script](https://github.com/Xeron2000/twitter-scroll-refresh/raw/refs/heads/main/Twitter%20Scroll%20Refresh.user.js)
 
 ## 🚀 使用方法 / Usage
 
